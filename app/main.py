@@ -1,13 +1,10 @@
 from fastapi import FastAPI
-from motor.motor_asyncio import AsyncIOMotorClient
+from app.database import database
+from app.api.v1.endpoints.vehicles import router as vehicles_router
 
-from app.config import settings
 
 app = FastAPI()
-
-client = AsyncIOMotorClient(settings.mongodb_url)
-database = client["mini_flota"]
-
+app.include_router(vehicles_router)
 
 @app.get("/health")
 async def health_check():
