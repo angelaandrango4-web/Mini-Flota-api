@@ -5,6 +5,10 @@ from app.database import database
 from app.schemas.vehicle import VehicleCreate
 
 
+class DuplicatePlateError(Exception):
+    pass
+
+
 def vehicle_helper(vehicle) -> dict:
     return {
         "id": str(vehicle["_id"]),
@@ -18,6 +22,10 @@ def vehicle_helper(vehicle) -> dict:
 
 
 async def create_vehicle(data: VehicleCreate) -> dict:
+    existing = await database["vehicles"].find_one({"plate": data.plate})
+    if existing:
+        raise DuplicatePlateError("La placa ya está registrada")
+
     result = await database["vehicles"].insert_one(data.model_dump())
     new_vehicle = await database["vehicles"].find_one({"_id": result.inserted_id})
     return vehicle_helper(new_vehicle)

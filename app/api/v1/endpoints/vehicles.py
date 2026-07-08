@@ -2,13 +2,17 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.vehicle import VehicleCreate, VehicleResponse
 from app.services import vehicle_service
+from app.services.vehicle_service import DuplicatePlateError
 
 router = APIRouter()
 
 
 @router.post("/vehicles", response_model=VehicleResponse)
 async def create_vehicle(vehicle: VehicleCreate):
-    return await vehicle_service.create_vehicle(vehicle)
+    try:
+        return await vehicle_service.create_vehicle(vehicle)
+    except DuplicatePlateError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/vehicles", response_model=list[VehicleResponse])

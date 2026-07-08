@@ -1,5 +1,7 @@
-from pydantic import BaseModel
+from datetime import datetime
+import re
 
+from pydantic import BaseModel, field_validator
 
 class VehicleCreate(BaseModel):
     plate: str
@@ -9,6 +11,29 @@ class VehicleCreate(BaseModel):
     capacity_kg: float
     status: str
 
+    @field_validator("plate")
+    @classmethod
+    def validate_plate(cls, value: str) -> str:
+        if not re.match(r"^[A-Z]{3}-\d{4}$", value):
+            raise ValueError("La placa debe tener el sigueinteformato: AAA-1234")
+        return value
+
+    @field_validator("year")
+    @classmethod
+    def validate_year(cls, value: int) -> int:
+        current_year = datetime.now().year
+        if value < 1990 or value > current_year:
+            raise ValueError(f"El año debe estar entre 1990 y {current_year}")
+        return value
+
+
+    @field_validator("capacity_kg")
+    @classmethod
+    def validate_capacity(cls, value: float) -> float:
+        if value <= 0:
+            raise ValueError("La capacidad debe ser mayor que 0")
+        return value
+    
 
 class VehicleResponse(BaseModel):
     id: str
