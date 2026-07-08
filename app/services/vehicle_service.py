@@ -1,4 +1,3 @@
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 
 from app.database import database
