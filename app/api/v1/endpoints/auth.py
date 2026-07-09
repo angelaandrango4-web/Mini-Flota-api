@@ -1,9 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import OAuth2PasswordRequestForm
-
 from app.database import database
 from app.schemas.user import TokenResponse
 from app.services.auth_service import verify_password, create_access_token
