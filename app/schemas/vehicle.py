@@ -14,7 +14,7 @@ class VehicleCreate(BaseModel):
 
     @field_validator("plate")
     @classmethod
-    def validate_plate(cls, value: str) -> str:
+    def validate_plate(gitcls, value: str) -> str:
         value = value.strip().upper()
 
         if not re.match(r"^[A-Z]{3}-\d{4}$", value):
