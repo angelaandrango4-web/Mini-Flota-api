@@ -1,4 +1,5 @@
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 
 from app.database import database
 from app.schemas.vehicle import VehicleCreate
@@ -11,21 +12,21 @@ class DuplicatePlateError(Exception):
 def vehicle_helper(vehicle) -> dict:
     return {
         "id": str(vehicle["_id"]),
-        "plate": vehicle["plate"],
-        "brand": vehicle["brand"],
-        "model": vehicle["model"],
-        "year": vehicle["year"],
-        "capacity_kg": vehicle["capacity_kg"],
-        "status": vehicle["status"],
+        "plate": vehicle.get("plate"),
+        "brand": vehicle.get("brand"),
+        "model": vehicle.get("model"),
+        "year": vehicle.get("year"),
+        "capacity_kg": vehicle.get("capacity_kg"),
+        "status": vehicle.get("status"),
     }
 
 
 async def create_vehicle(data: VehicleCreate) -> dict:
-    existing = await database["vehicles"].find_one({"plate": data.plate})
-    if existing:
+    try:
+        result = await database["vehicles"].insert_one(data.model_dump())
+    except DuplicateKeyError:
         raise DuplicatePlateError("La placa ya está registrada")
 
-    result = await database["vehicles"].insert_one(data.model_dump())
     new_vehicle = await database["vehicles"].find_one({"_id": result.inserted_id})
     return vehicle_helper(new_vehicle)
 

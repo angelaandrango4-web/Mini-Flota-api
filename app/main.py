@@ -7,6 +7,10 @@ app = FastAPI()
 app.include_router(vehicles_router)
 app.include_router(auth_router)
 
+@app.on_event("startup")
+async def startup():
+    await database["vehicles"].create_index("plate", unique=True)
+
 @app.get("/health")
 async def health_check():
     await database.command("ping")
