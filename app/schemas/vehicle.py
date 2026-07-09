@@ -1,5 +1,6 @@
 from datetime import datetime
 import re
+from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
@@ -9,13 +10,13 @@ class VehicleCreate(BaseModel):
     model: str
     year: int
     capacity_kg: float
-    status: str
+    status: Literal["active", "inactive"]
 
     @field_validator("plate")
     @classmethod
     def validate_plate(cls, value: str) -> str:
         if not re.match(r"^[A-Z]{3}-\d{4}$", value):
-            raise ValueError("La placa debe tener el sigueinteformato: AAA-1234")
+            raise ValueError("La placa debe tener el siguiente formato: AAA-1234")
         return value
 
     @field_validator("year")
@@ -42,4 +43,4 @@ class VehicleResponse(BaseModel):
     model: str
     year: int
     capacity_kg: float
-    status: str
+    status: Literal["active", "inactive"]
