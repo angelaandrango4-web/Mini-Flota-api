@@ -3,12 +3,27 @@ name = "mini-flota-api"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Angela Andrango",email = "angelaandrango4@gmail.com"}
+    { name = "Angela Andrango", email = "angelaandrango4@gmail.com" }
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
+
 dependencies = [
+    "fastapi>=0.139.0,<0.140.0",
+    "uvicorn>=0.50.2,<0.51.0",
+    "motor>=3.7.1,<4.0.0",
+    "pydantic-settings>=2.14.2,<3.0.0",
+    "pyjwt>=2.13.0,<3.0.0",
+    "passlib[bcrypt]>=1.7.4,<2.0.0",
+    "python-multipart>=0.0.32,<0.0.33",
 ]
 
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1,<0.29.0",
+    "pytest>=9.1.1,<10.0.0",
+    "pytest-asyncio>=1.4.0,<2.0.0",
+    "pre-commit>=4.6.0,<5.0.0",
+]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
