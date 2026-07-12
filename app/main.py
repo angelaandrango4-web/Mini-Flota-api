@@ -4,13 +4,23 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.endpoints.auth import router as auth_router
+from app.api.v1.endpoints.driver import router as drivers_router
 from app.api.v1.endpoints.vehicles import router as vehicles_router
 from app.database import database
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await database["vehicles"].create_index("plate", unique=True)
+    await database["vehicles"].create_index(
+        "plate",
+        unique=True,
+    )
+
+    await database["drivers"].create_index(
+        "license",
+        unique=True,
+    )
+
     yield
 
 
@@ -27,8 +37,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(vehicles_router)
 app.include_router(auth_router)
+app.include_router(vehicles_router)
+app.include_router(drivers_router)
 
 
 @app.get("/health")
