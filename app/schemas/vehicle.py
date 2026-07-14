@@ -1,6 +1,7 @@
 from datetime import datetime
 import re
 from typing import Literal
+from app.schemas.driver import DriverResponse
 
 from pydantic import BaseModel, field_validator
 
@@ -39,6 +40,10 @@ class VehicleCreate(BaseModel):
         return value
     
 
+class AssignDriverRequest(BaseModel):
+    driver_id: str
+
+
 class VehicleResponse(BaseModel):
     id: str
     plate: str
@@ -47,3 +52,4 @@ class VehicleResponse(BaseModel):
     year: int
     capacity_kg: float
     status: Literal["active", "inactive"]
+    driver: DriverResponse | None = None
