@@ -1,8 +1,15 @@
+import math
+import re
+
 from bson import ObjectId
+from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
 
 from app.database import database
 from app.schemas.vehicle import VehicleCreate
+from app.schemas.vehicle_query import (
+    VehicleQueryParams,
+)
 from app.services.driver_service import driver_helper
 
 
@@ -87,10 +94,66 @@ async def create_vehicle(
     return await vehicle_helper(new_vehicle)
 
 
-async def list_vehicles() -> list[dict]:
+async def list_vehicles(
+    params: VehicleQueryParams,
+) -> dict:
+    filters: dict = {}
+
+    if params.status is not None:
+        filters["status"] = params.status
+
+    if params.search is not None:
+        safe_search = re.escape(params.search)
+
+        filters["$or"] = [
+            {
+                "plate": {
+                    "$regex": safe_search,
+                    "$options": "i",
+                },
+            },
+            {
+                "brand": {
+                    "$regex": safe_search,
+                    "$options": "i",
+                },
+            },
+            {
+                "model": {
+                    "$regex": safe_search,
+                    "$options": "i",
+                },
+            },
+        ]
+
+    total = await database["vehicles"].count_documents(
+        filters,
+    )
+
+    skip = (
+        params.page - 1
+    ) * params.page_size
+
+    sort_direction = (
+        ASCENDING
+        if params.order == "asc"
+        else DESCENDING
+    )
+
+    vehicle_cursor = (
+        database["vehicles"]
+        .find(filters)
+        .sort(
+            params.sort_by,
+            sort_direction,
+        )
+        .skip(skip)
+        .limit(params.page_size)
+    )
+
     vehicles = []
 
-    async for vehicle in database["vehicles"].find():
+    async for vehicle in vehicle_cursor:
         vehicles.append(vehicle)
 
     driver_ids = {
@@ -115,7 +178,7 @@ async def list_vehicles() -> list[dict]:
                 driver_helper(driver)
             )
 
-    return [
+    items = [
         format_vehicle(
             vehicle,
             drivers_by_id.get(
@@ -124,6 +187,20 @@ async def list_vehicles() -> list[dict]:
         )
         for vehicle in vehicles
     ]
+
+    total_pages = (
+        math.ceil(total / params.page_size)
+        if total > 0
+        else 0
+    )
+
+    return {
+        "items": items,
+        "total": total,
+        "page": params.page,
+        "page_size": params.page_size,
+        "total_pages": total_pages,
+    }
 
 
 async def get_vehicle(
@@ -165,7 +242,9 @@ async def update_vehicle(
     )
 
     if updated_vehicle:
-        return await vehicle_helper(updated_vehicle)
+        return await vehicle_helper(
+            updated_vehicle,
+        )
 
     return None
 
@@ -211,7 +290,9 @@ async def assign_driver(
             "Conductor no encontrado",
         )
 
-    existing_assignment = await database["vehicles"].find_one(
+    existing_assignment = await database[
+        "vehicles"
+    ].find_one(
         {
             "driver_id": driver_object_id,
             "_id": {
@@ -234,7 +315,9 @@ async def assign_driver(
         },
     )
 
-    updated_vehicle = await database["vehicles"].find_one(
+    updated_vehicle = await database[
+        "vehicles"
+    ].find_one(
         {"_id": vehicle_object_id},
     )
 

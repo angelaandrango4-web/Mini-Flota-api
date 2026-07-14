@@ -3,9 +3,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from bson import ObjectId
 from pydantic import ValidationError
+from pymongo import ASCENDING
 from pymongo.errors import DuplicateKeyError
 
 from app.schemas.vehicle import VehicleCreate
+from app.schemas.vehicle_query import VehicleQueryParams
 from app.services import vehicle_service
 from app.services.vehicle_service import DuplicatePlateError
 
@@ -114,7 +116,9 @@ class TestVehicleService:
         )
 
     @pytest.mark.asyncio
-    async def test_list_vehicles_success(self):
+    async def test_list_vehicles_returns_paginated_response(
+        self,
+    ):
         vehicle_id_1 = ObjectId()
         vehicle_id_2 = ObjectId()
         driver_id = ObjectId()
@@ -145,25 +149,181 @@ class TestVehicleService:
             {
                 "_id": driver_id,
                 "name": "José López",
-                "license": "ARTE-879",
+                "license": "1712345678",
             },
         ]
 
         vehicle_cursor = MagicMock()
-        vehicle_cursor.__aiter__.return_value = stored_vehicles
+        vehicle_cursor.__aiter__.return_value = (
+            stored_vehicles
+        )
+        vehicle_cursor.sort.return_value = (
+            vehicle_cursor
+        )
+        vehicle_cursor.skip.return_value = (
+            vehicle_cursor
+        )
+        vehicle_cursor.limit.return_value = (
+            vehicle_cursor
+        )
 
         driver_cursor = MagicMock()
-        driver_cursor.__aiter__.return_value = stored_drivers
+        driver_cursor.__aiter__.return_value = (
+            stored_drivers
+        )
 
         vehicle_collection = MagicMock()
-        vehicle_collection.find.return_value = vehicle_cursor
+        vehicle_collection.count_documents = AsyncMock(
+            return_value=2,
+        )
+        vehicle_collection.find.return_value = (
+            vehicle_cursor
+        )
 
         driver_collection = MagicMock()
-        driver_collection.find.return_value = driver_cursor
+        driver_collection.find.return_value = (
+            driver_cursor
+        )
 
         mock_database = {
             "vehicles": vehicle_collection,
             "drivers": driver_collection,
+        }
+
+        params = VehicleQueryParams(
+            page=1,
+            page_size=20,
+            status=None,
+            search=None,
+            sort_by="plate",
+            order="asc",
+        )
+
+        with patch.object(
+            vehicle_service,
+            "database",
+            mock_database,
+        ):
+            result = await vehicle_service.list_vehicles(
+                params,
+            )
+
+        assert result == {
+            "items": [
+                {
+                    "id": str(vehicle_id_1),
+                    "plate": "PDA-1234",
+                    "brand": "Toyota",
+                    "model": "Hilux",
+                    "year": 2020,
+                    "capacity_kg": 1000,
+                    "status": "active",
+                    "driver": {
+                        "id": str(driver_id),
+                        "name": "José López",
+                        "license": "1712345678",
+                    },
+                },
+                {
+                    "id": str(vehicle_id_2),
+                    "plate": "ABC-5678",
+                    "brand": "Chevrolet",
+                    "model": "D-Max",
+                    "year": 2022,
+                    "capacity_kg": 1200,
+                    "status": "inactive",
+                    "driver": None,
+                },
+            ],
+            "total": 2,
+            "page": 1,
+            "page_size": 20,
+            "total_pages": 1,
+        }
+
+        vehicle_collection.count_documents.assert_awaited_once_with(
+            {},
+        )
+        vehicle_collection.find.assert_called_once_with(
+            {},
+        )
+        vehicle_cursor.sort.assert_called_once_with(
+            "plate",
+            ASCENDING,
+        )
+        vehicle_cursor.skip.assert_called_once_with(
+            0,
+        )
+        vehicle_cursor.limit.assert_called_once_with(
+            20,
+        )
+        driver_collection.find.assert_called_once_with(
+            {
+                "_id": {
+                    "$in": [driver_id],
+                },
+            },
+        )
+
+    @pytest.mark.asyncio
+    async def test_list_vehicles_applies_filters_and_pagination(
+        self,
+    ):
+        vehicle_cursor = MagicMock()
+        vehicle_cursor.__aiter__.return_value = []
+        vehicle_cursor.sort.return_value = (
+            vehicle_cursor
+        )
+        vehicle_cursor.skip.return_value = (
+            vehicle_cursor
+        )
+        vehicle_cursor.limit.return_value = (
+            vehicle_cursor
+        )
+
+        vehicle_collection = MagicMock()
+        vehicle_collection.count_documents = AsyncMock(
+            return_value=12,
+        )
+        vehicle_collection.find.return_value = (
+            vehicle_cursor
+        )
+
+        mock_database = {
+            "vehicles": vehicle_collection,
+        }
+
+        params = VehicleQueryParams(
+            page=2,
+            page_size=5,
+            status="active",
+            search="toyota",
+            sort_by="year",
+            order="desc",
+        )
+
+        expected_filters = {
+            "status": "active",
+            "$or": [
+                {
+                    "plate": {
+                        "$regex": "toyota",
+                        "$options": "i",
+                    },
+                },
+                {
+                    "brand": {
+                        "$regex": "toyota",
+                        "$options": "i",
+                    },
+                },
+                {
+                    "model": {
+                        "$regex": "toyota",
+                        "$options": "i",
+                    },
+                },
+            ],
         }
 
         with patch.object(
@@ -171,41 +331,33 @@ class TestVehicleService:
             "database",
             mock_database,
         ):
-            result = await vehicle_service.list_vehicles()
+            result = await vehicle_service.list_vehicles(
+                params,
+            )
 
-        assert result == [
-            {
-                "id": str(vehicle_id_1),
-                "plate": "PDA-1234",
-                "brand": "Toyota",
-                "model": "Hilux",
-                "year": 2020,
-                "capacity_kg": 1000,
-                "status": "active",
-                "driver": {
-                    "id": str(driver_id),
-                    "name": "José López",
-                    "license": "ARTE-879",
-                },
-            },
-            {
-                "id": str(vehicle_id_2),
-                "plate": "ABC-5678",
-                "brand": "Chevrolet",
-                "model": "D-Max",
-                "year": 2022,
-                "capacity_kg": 1200,
-                "status": "inactive",
-                "driver": None,
-            },
-        ]
+        assert result == {
+            "items": [],
+            "total": 12,
+            "page": 2,
+            "page_size": 5,
+            "total_pages": 3,
+        }
 
-        driver_collection.find.assert_called_once_with(
-            {
-                "_id": {
-                    "$in": [driver_id],
-                },
-            },
+        vehicle_collection.count_documents.assert_awaited_once_with(
+            expected_filters,
+        )
+        vehicle_collection.find.assert_called_once_with(
+            expected_filters,
+        )
+        vehicle_cursor.sort.assert_called_once_with(
+            "year",
+            -1,
+        )
+        vehicle_cursor.skip.assert_called_once_with(
+            5,
+        )
+        vehicle_cursor.limit.assert_called_once_with(
+            5,
         )
 
     @pytest.mark.asyncio
