@@ -18,10 +18,17 @@ class DriverCreate(BaseModel):
     @field_validator("license")
     @classmethod
     def validate_license(cls, value: str) -> str:
-        value = value.strip().upper()
+        value = value.strip()
 
-        if not value:
-            raise ValueError("La licencia no puede estar vacía")
+        if not value.isdigit():
+            raise ValueError(
+                "La licencia debe contener únicamente números",
+            )
+
+        if len(value) != 10:
+            raise ValueError(
+                "La licencia debe contener exactamente 10 dígitos",
+            )
 
         return value
 

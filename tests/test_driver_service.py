@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock, MagicMock, patch
+from pydantic import ValidationError
 
 import pytest
 from bson import ObjectId
@@ -20,13 +21,13 @@ class TestDriverService:
 
         driver_data = DriverCreate(
             name="José López",
-            license="arte-879",
+            license="1712345678",
         )
 
         stored_driver = {
             "_id": driver_id,
             "name": "José López",
-            "license": "ARTE-879",
+            "license": "1712345678",
         }
 
         mock_collection = MagicMock()
@@ -55,7 +56,7 @@ class TestDriverService:
         assert result == {
             "id": str(driver_id),
             "name": "José López",
-            "license": "ARTE-879",
+            "license": "1712345678",
         }
 
         mock_collection.insert_one.assert_awaited_once_with(
@@ -68,7 +69,7 @@ class TestDriverService:
     ):
         driver_data = DriverCreate(
             name="José López",
-            license="ARTE-879",
+            license="1712345678",
         )
 
         mock_collection = MagicMock()
@@ -119,7 +120,7 @@ class TestAssignDriver:
         stored_driver = {
             "_id": driver_id,
             "name": "José López",
-            "license": "ARTE-879",
+            "license": "1712345678",
         }
 
         updated_vehicle = {
@@ -171,7 +172,7 @@ class TestAssignDriver:
             "driver": {
                 "id": str(driver_id),
                 "name": "José López",
-                "license": "ARTE-879",
+                "license": "1712345678",
             },
         }
 
@@ -255,7 +256,7 @@ class TestAssignDriver:
             return_value={
                 "_id": driver_id,
                 "name": "José López",
-                "license": "ARTE-879",
+                "license": "1712345678",
             },
         )
 
@@ -283,3 +284,32 @@ class TestAssignDriver:
         )
 
         vehicle_collection.update_one.assert_not_awaited()
+
+
+class TestDriverValidations:
+    def test_driver_rejects_license_with_letters(
+        self,
+    ):
+        with pytest.raises(ValidationError):
+            DriverCreate(
+                name="José López",
+                license="ABC1234567",
+            )
+
+    def test_driver_rejects_license_with_less_than_ten_digits(
+        self,
+    ):
+        with pytest.raises(ValidationError):
+            DriverCreate(
+                name="José López",
+                license="123456789",
+            )
+
+    def test_driver_rejects_license_with_more_than_ten_digits(
+        self,
+    ):
+        with pytest.raises(ValidationError):
+            DriverCreate(
+                name="José López",
+                license="12345678901",
+            )
