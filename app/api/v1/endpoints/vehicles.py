@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 
-from app.schemas.vehicle import VehicleCreate, VehicleResponse
+from app.schemas.vehicle import (AssignDriverRequest, VehicleCreate, VehicleResponse)
 from app.services import vehicle_service
-from app.services.vehicle_service import DuplicatePlateError
+from app.services.vehicle_service import (DriverAlreadyAssignedError, DriverNotFoundError, DuplicatePlateError)
 from app.api.deps import get_current_user
 
 router = APIRouter()
@@ -35,6 +35,39 @@ async def update_vehicle(vehicle_id: str, vehicle: VehicleCreate, current_user: 
     if updated is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
     return updated
+
+@router.patch(
+    "/vehicles/{vehicle_id}/assign-driver",
+    response_model=VehicleResponse,
+)
+async def assign_driver(
+    vehicle_id: str,
+    assignment: AssignDriverRequest,
+    current_user: str = Depends(get_current_user),
+):
+    try:
+        updated_vehicle = await vehicle_service.assign_driver(
+            vehicle_id,
+            assignment.driver_id,
+        )
+    except DriverNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        )
+    except DriverAlreadyAssignedError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    if updated_vehicle is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehículo no encontrado",
+        )
+
+    return updated_vehicle
 
 
 @router.delete("/vehicles/{vehicle_id}")
