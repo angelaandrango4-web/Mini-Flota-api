@@ -16,6 +16,10 @@ async def lifespan(app: FastAPI):
         unique=True,
     )
 
+    await database["vehicles"].create_index(
+        "status",
+    )
+
     await database["drivers"].create_index(
         "license",
         unique=True,
